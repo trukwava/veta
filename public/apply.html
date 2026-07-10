@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Apply — VETA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper: #F5F4EF; --card: #FCFBF8; --ink: #20251F; --ink-soft: #5A6055;
+    --spruce: #2F5D46; --brass: #A97F2F; --rule: #DDD9CC; --danger: #8C3B2E;
+    --radius: 10px;
+    --display: "Bricolage Grotesque", system-ui, sans-serif;
+    --body: "Instrument Sans", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55; min-height: 100vh; }
+  ::selection { background: var(--spruce); color: var(--card); }
+
+  header {
+    border-bottom: 2px solid var(--ink);
+    padding: 28px clamp(20px,5vw,56px) 22px;
+    display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  }
+  .wordmark { font-family: var(--display); font-weight: 800; font-size: clamp(1.5rem,3vw,2rem); letter-spacing: -0.02em; }
+  .wordmark em { font-style: normal; color: var(--spruce); }
+  .tagline { font-family: var(--mono); font-size: 0.78rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  main { max-width: 560px; margin: 0 auto; padding: 48px clamp(20px,5vw,40px) 96px; }
+
+  .role-header { margin-bottom: 36px; }
+  .applying-for { font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-soft); margin-bottom: 8px; }
+  .role-title { font-family: var(--display); font-weight: 800; font-size: clamp(1.8rem,4vw,2.6rem); letter-spacing: -0.02em; line-height: 1.1; }
+  .company-name { font-family: var(--display); font-weight: 600; font-size: 1.1rem; color: var(--spruce); margin-top: 6px; }
+
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: 28px; box-shadow: 0 1px 0 var(--rule); }
+
+  label { display: block; font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); margin: 18px 0 5px; }
+  label:first-of-type { margin-top: 0; }
+  input[type="text"], input[type="email"], textarea {
+    width: 100%; font-family: var(--body); font-size: 0.95rem; color: var(--ink);
+    background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 10px 12px; resize: vertical;
+  }
+  input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--spruce); outline-offset: 2px; }
+  textarea#resumeText { min-height: 200px; font-family: var(--mono); font-size: 0.83rem; line-height: 1.6; }
+
+  .mode-toggle { display: flex; gap: 0; margin: 18px 0 10px; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+  .mode-toggle button {
+    flex: 1; background: transparent; border: none; padding: 8px 12px;
+    font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--ink-soft); cursor: pointer; transition: background 120ms, color 120ms;
+  }
+  .mode-toggle button.active { background: var(--ink); color: var(--paper); }
+
+  .upload-zone {
+    display: none; border: 2px dashed var(--rule); border-radius: 8px;
+    padding: 36px; text-align: center; cursor: pointer; transition: border-color 120ms, background 120ms;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--spruce); background: #f0f4f1; }
+  .upload-zone input[type="file"] { display: none; }
+  .uz-label { font-family: var(--display); font-weight: 600; font-size: 1rem; margin-bottom: 4px; }
+  .uz-sub { font-family: var(--mono); font-size: 0.72rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.08em; }
+  .upload-zone.has-file { border-color: var(--spruce); background: #f0f4f1; }
+  .upload-zone.has-file .uz-label { color: var(--spruce); }
+
+  button.primary {
+    margin-top: 24px; width: 100%;
+    font-family: var(--display); font-weight: 600; font-size: 1.05rem;
+    background: var(--spruce); color: #fff; border: none; border-radius: 8px;
+    padding: 16px 18px; cursor: pointer; transition: background 120ms, transform 120ms;
+  }
+  button.primary:hover { background: #264C39; }
+  button.primary:active { transform: translateY(1px); }
+  button.primary:disabled { background: var(--ink-soft); cursor: wait; }
+
+  .status-msg { margin-top: 12px; font-size: 0.9rem; min-height: 1.4em; }
+  .status-msg.error { color: var(--danger); }
+  .status-msg.working { color: var(--spruce); font-family: var(--mono); font-size: 0.8rem; }
+
+  /* Confirmation */
+  .confirmation {
+    text-align: center; padding: 56px 24px;
+    background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius);
+  }
+  .check-circle {
+    width: 72px; height: 72px; border-radius: 50%; background: var(--spruce);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 24px; font-size: 2rem; color: white;
+  }
+  .confirmation h1 { font-family: var(--display); font-weight: 800; font-size: 1.8rem; margin-bottom: 8px; }
+  .confirmation p { color: var(--ink-soft); font-size: 1.05rem; }
+
+  .footer-note { margin-top: 32px; font-family: var(--mono); font-size: 0.68rem; color: var(--ink-soft); text-align: center; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wordmark">VE<em>TA</em></div>
+  <div class="tagline">Read the person, not the keywords</div>
+</header>
+
+<main>
+
+  <!-- ---- loaded from URL params ---- -->
+  <div class="role-header" id="roleHeader">
+    <div class="applying-for">You are applying for</div>
+    <div class="role-title" id="roleTitle">Loading role…</div>
+    <div class="company-name" id="companyName"></div>
+  </div>
+
+  <!-- ---- application form ---- -->
+  <div class="card" id="formCard">
+
+    <label for="applicantName">Full name *</label>
+    <input type="text" id="applicantName" placeholder="Your full name" autocomplete="name" />
+
+    <label for="applicantEmail">Email address *</label>
+    <input type="email" id="applicantEmail" placeholder="you@email.com" autocomplete="email" />
+
+    <label>Resume *</label>
+    <div class="mode-toggle">
+      <button id="modeText" class="active" type="button">Paste text</button>
+      <button id="modePdf" type="button">Upload PDF</button>
+    </div>
+
+    <textarea id="resumeText" placeholder="Paste your resume here — formatting doesn't matter."></textarea>
+
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="pdfInput" accept=".pdf,application/pdf" />
+      <div class="uz-label" id="uzLabel">Drop your PDF here or click to browse</div>
+      <div class="uz-sub">PDF only · max 10 MB</div>
+    </div>
+
+    <button class="primary" id="submitBtn" type="button">Submit application →</button>
+    <div class="status-msg" id="statusMsg" role="status" aria-live="polite"></div>
+
+  </div>
+
+  <!-- ---- confirmation (hidden until submit) ---- -->
+  <div class="confirmation" id="confirmation" style="display:none">
+    <div class="check-circle">✓</div>
+    <h1>Application received</h1>
+    <p id="confirmMsg">Thanks — we'll review your application and be in touch.</p>
+  </div>
+
+  <div class="footer-note">
+    Your application is reviewed by a real person. VETA assists with initial screening — all final decisions are made by the hiring team.
+  </div>
+
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+
+// ---- populate role header ----
+const role    = params.get("role")    || "Open Position";
+const company = params.get("company") || "";
+$("roleTitle").textContent   = role;
+$("companyName").textContent = company ? `at ${company}` : "";
+document.title = `Apply — ${role}${company ? " at " + company : ""}`;
+
+// ---- PDF mode ----
+let pdfBase64  = null;
+let resumeMode = "text";
+
+$("modeText").addEventListener("click", () => setMode("text"));
+$("modePdf").addEventListener("click",  () => setMode("pdf"));
+
+function setMode(mode) {
+  resumeMode = mode;
+  pdfBase64  = null;
+  $("modeText").className   = mode === "text" ? "active" : "";
+  $("modePdf").className    = mode === "pdf"  ? "active" : "";
+  $("resumeText").style.display  = mode === "text" ? "" : "none";
+  $("uploadZone").style.display  = mode === "pdf"  ? "" : "none";
+  if (mode === "text") {
+    $("uzLabel").textContent = "Drop your PDF here or click to browse";
+    $("uploadZone").classList.remove("has-file");
+    $("pdfInput").value = "";
+  }
+}
+
+$("uploadZone").addEventListener("click", () => $("pdfInput").click());
+$("uploadZone").addEventListener("dragover", e => { e.preventDefault(); $("uploadZone").classList.add("drag"); });
+$("uploadZone").addEventListener("dragleave", () => $("uploadZone").classList.remove("drag"));
+$("uploadZone").addEventListener("drop", e => { e.preventDefault(); $("uploadZone").classList.remove("drag"); const f = e.dataTransfer.files[0]; if (f) loadPdf(f); });
+$("pdfInput").addEventListener("change", e => { const f = e.target.files[0]; if (f) loadPdf(f); });
+
+function loadPdf(file) {
+  if (file.size > 10 * 1024 * 1024) { alert("PDF is over 10 MB — please use a smaller file."); return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    pdfBase64 = ev.target.result.split(",")[1];
+    $("uzLabel").textContent = `✓ ${file.name}`;
+    $("uploadZone").classList.add("has-file");
+  };
+  reader.readAsDataURL(file);
+}
+
+// ---- submit ----
+$("submitBtn").addEventListener("click", async () => {
+  const name  = $("applicantName").value.trim();
+  const email = $("applicantEmail").value.trim();
+  const text  = $("resumeText").value.trim();
+  const msg   = $("statusMsg");
+  const btn   = $("submitBtn");
+
+  if (!name)  { msg.className = "status-msg error"; msg.textContent = "Please enter your name."; $("applicantName").focus(); return; }
+  if (!email) { msg.className = "status-msg error"; msg.textContent = "Please enter your email."; $("applicantEmail").focus(); return; }
+  if (resumeMode === "text" && text.length < 40) { msg.className = "status-msg error"; msg.textContent = "Please paste your resume — it looks empty."; $("resumeText").focus(); return; }
+  if (resumeMode === "pdf" && !pdfBase64) { msg.className = "status-msg error"; msg.textContent = "Please upload your resume PDF."; return; }
+
+  btn.disabled = true;
+  btn.textContent = "Submitting…";
+  msg.className = "status-msg working";
+  msg.textContent = "Sending your application…";
+
+  try {
+    const res = await fetch("/api/submit", {
+      method:  "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        name, email,
+        role:    params.get("role")    || "General",
+        company: params.get("company") || "",
+        resumePdf:  pdfBase64 || null,
+        resumeText: resumeMode === "text" ? text : null,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Something went wrong.");
+
+    // Show confirmation
+    $("formCard").style.display   = "none";
+    $("roleHeader").style.display = "none";
+    $("confirmMsg").textContent   = `Thanks, ${name}. We'll review your application and be in touch.`;
+    $("confirmation").style.display = "";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+  } catch (err) {
+    msg.className   = "status-msg error";
+    msg.textContent = err.message;
+    btn.disabled    = false;
+    btn.textContent = "Submit application →";
+  }
+});
+</script>
+</body>
+</html>
