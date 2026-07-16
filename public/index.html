@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VETA — read the person, not the keywords</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper: #F5F4EF;
+    --card: #FCFBF8;
+    --ink: #20251F;
+    --ink-soft: #5A6055;
+    --spruce: #2F5D46;
+    --brass: #A97F2F;
+    --rule: #DDD9CC;
+    --danger: #8C3B2E;
+    --radius: 10px;
+    --display: "Bricolage Grotesque", system-ui, sans-serif;
+    --body: "Instrument Sans", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.55;
+    padding-bottom: 96px;
+  }
+  ::selection { background: var(--spruce); color: var(--card); }
+
+  /* ---------- header ---------- */
+  header {
+    border-bottom: 2px solid var(--ink);
+    padding: 28px clamp(20px, 5vw, 56px) 22px;
+    display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  }
+  .wordmark {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    letter-spacing: -0.02em;
+  }
+  .wordmark em { font-style: normal; color: var(--spruce); }
+  .tagline {
+    font-family: var(--mono); font-size: 0.78rem; color: var(--ink-soft);
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+
+  /* ---------- layout ---------- */
+  .workbench {
+    display: grid;
+    grid-template-columns: minmax(300px, 380px) 1fr;
+    gap: 28px;
+    padding: 32px clamp(20px, 5vw, 56px) 0;
+    align-items: start;
+  }
+  @media (max-width: 900px) { .workbench { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: 0 1px 0 var(--rule);
+  }
+  .card h2 {
+    font-family: var(--display); font-weight: 600; font-size: 1.15rem;
+    display: flex; align-items: center; gap: 10px; margin-bottom: 4px;
+  }
+  .card .hint { color: var(--ink-soft); font-size: 0.88rem; margin-bottom: 18px; }
+  .chip {
+    font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--card); background: var(--ink);
+    padding: 3px 8px; border-radius: 4px;
+  }
+  #jobCard { position: sticky; top: 20px; }
+  @media (max-width: 900px) { #jobCard { position: static; } }
+
+  label {
+    display: block; font-family: var(--mono); font-size: 0.72rem;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft);
+    margin: 14px 0 5px;
+  }
+  input, textarea {
+    width: 100%; font-family: var(--body); font-size: 0.95rem; color: var(--ink);
+    background: var(--paper); border: 1px solid var(--rule); border-radius: 6px;
+    padding: 10px 12px; resize: vertical;
+  }
+  input:focus-visible, textarea:focus-visible, button:focus-visible {
+    outline: 2px solid var(--spruce); outline-offset: 2px;
+  }
+  textarea#resume { min-height: 260px; font-family: var(--mono); font-size: 0.85rem; line-height: 1.6; }
+
+  button.primary {
+    margin-top: 18px; width: 100%;
+    font-family: var(--display); font-weight: 600; font-size: 1.05rem;
+    background: var(--spruce); color: #fff; border: none; border-radius: 8px;
+    padding: 14px 18px; cursor: pointer;
+    transition: background 120ms ease, transform 120ms ease;
+  }
+  button.primary:hover { background: #264C39; }
+  button.primary:active { transform: translateY(1px); }
+  button.primary:disabled { background: var(--ink-soft); cursor: wait; }
+
+  .status { margin-top: 12px; font-size: 0.9rem; min-height: 1.4em; }
+  .status.error { color: var(--danger); }
+  .status.working { color: var(--spruce); font-family: var(--mono); font-size: 0.8rem; }
+
+  /* ---------- empty state ---------- */
+  .empty {
+    border: 1px dashed var(--rule); border-radius: var(--radius);
+    padding: 48px 24px; text-align: center; color: var(--ink-soft); margin-top: 28px;
+  }
+  .empty strong { font-family: var(--display); color: var(--ink); display: block; font-size: 1.1rem; margin-bottom: 6px; }
+
+  /* ---------- dossier (results) ---------- */
+  .dossier {
+    margin: 36px clamp(20px, 5vw, 56px) 0;
+    background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .dossier > section { padding: 28px clamp(20px, 4vw, 44px); border-top: 1px solid var(--rule); }
+  .dossier > section:first-child { border-top: none; }
+
+  .dossier-head { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+  .dossier-head .name { font-family: var(--mono); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-soft); margin-bottom: 10px; }
+
+  .story {
+    font-family: var(--display); font-weight: 600;
+    font-size: clamp(1.3rem, 2.4vw, 1.8rem);
+    line-height: 1.35; letter-spacing: -0.01em; max-width: 34ch;
+  }
+  .score-stamp {
+    flex-shrink: 0; text-align: center;
+    border: 2px solid var(--brass); border-radius: 8px; padding: 12px 18px;
+    font-family: var(--mono); color: var(--brass); transform: rotate(1.5deg);
+  }
+  .score-stamp .big { font-size: 2rem; font-weight: 500; line-height: 1; }
+  .score-stamp .small { font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; }
+
+  h3.section-title {
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--spruce); margin-bottom: 16px;
+  }
+  .whole-picture {
+    font-size: 1.08rem; line-height: 1.65; max-width: 62ch;
+    border-left: 3px solid var(--spruce); padding-left: 18px;
+  }
+
+  .ledger { display: grid; gap: 0; }
+  .ledger-row { display: grid; grid-template-columns: 200px 1fr; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+  .ledger-row:last-child { border-bottom: none; }
+  .ledger-row .k { font-weight: 600; font-size: 0.95rem; }
+  .ledger-row .v { color: var(--ink-soft); font-size: 0.92rem; }
+  .ledger-row .v .evidence { font-family: var(--mono); font-size: 0.8rem; color: var(--ink); }
+  @media (max-width: 640px) { .ledger-row { grid-template-columns: 1fr; gap: 4px; } }
+
+  table.scores { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+  table.scores th {
+    text-align: left; font-family: var(--mono); font-size: 0.68rem;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-soft);
+    padding: 6px 10px 10px 0; border-bottom: 1px solid var(--ink);
+  }
+  table.scores td { padding: 10px 10px 10px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  td.num { font-family: var(--mono); color: var(--brass); font-weight: 500; white-space: nowrap; }
+  .culture-read { margin-top: 14px; font-size: 0.9rem; color: var(--ink-soft); }
+  .culture-read b { color: var(--ink); }
+
+  ul.plain { list-style: none; display: grid; gap: 10px; }
+  ul.plain li { padding-left: 18px; position: relative; font-size: 0.95rem; }
+  ul.plain li::before { content: "—"; position: absolute; left: 0; color: var(--spruce); }
+
+  .gap {
+    background: var(--paper); border: 1px solid var(--rule); border-radius: 8px;
+    padding: 16px 18px; margin-bottom: 12px;
+  }
+  .gap .obs { font-weight: 600; margin-bottom: 6px; }
+  .gap .hyp { font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 8px; }
+  .gap .hyp em { font-family: var(--mono); font-style: normal; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--brass); display: block; margin-bottom: 2px; }
+  .gap .ask { font-size: 0.95rem; border-top: 1px dashed var(--rule); padding-top: 8px; }
+
+  .q { padding: 16px 0; border-bottom: 1px solid var(--rule); }
+  .q:last-child { border-bottom: none; }
+  .q .theme { font-family: var(--mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--brass); margin-bottom: 6px; }
+  .q .ask { font-size: 1.02rem; font-weight: 600; max-width: 68ch; }
+  .q .listen { font-size: 0.88rem; color: var(--ink-soft); margin-top: 6px; max-width: 68ch; }
+  .q .listen b { color: var(--spruce); font-weight: 600; }
+
+  .bottom-line {
+    background: var(--ink); color: var(--paper);
+    font-family: var(--display); font-weight: 600; font-size: 1.15rem; line-height: 1.4;
+  }
+  .bottom-line .lede { font-family: var(--mono); font-size: 0.66rem; font-weight: 400; letter-spacing: 0.12em; text-transform: uppercase; color: var(--brass); margin-bottom: 8px; }
+
+  .meta-line { padding: 12px clamp(20px,4vw,44px); font-family: var(--mono); font-size: 0.68rem; color: var(--ink-soft); border-top: 1px solid var(--rule); }
+
+  pre.raw { white-space: pre-wrap; font-family: var(--mono); font-size: 0.82rem; }
+
+  /* ---------- mode toggle ---------- */
+  .mode-toggle { display: flex; gap: 0; margin-bottom: 14px; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+  .mode-toggle button {
+    flex: 1; background: transparent; border: none; padding: 8px 12px;
+    font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--ink-soft); cursor: pointer;
+    transition: background 120ms, color 120ms;
+  }
+  .mode-toggle button.active { background: var(--ink); color: var(--paper); }
+
+  /* ---------- file upload ---------- */
+  .upload-zone {
+    display: none; border: 2px dashed var(--rule); border-radius: 8px;
+    padding: 32px; text-align: center; cursor: pointer;
+    transition: border-color 120ms, background 120ms;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--spruce); background: #f0f4f1; }
+  .upload-zone input[type="file"] { display: none; }
+  .upload-zone .uz-label { font-family: var(--display); font-weight: 600; font-size: 1rem; margin-bottom: 4px; }
+  .upload-zone .uz-sub { font-family: var(--mono); font-size: 0.72rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.08em; }
+  .upload-zone.has-file { border-color: var(--spruce); background: #f0f4f1; }
+  .upload-zone.has-file .uz-label { color: var(--spruce); }
+
+  /* ---------- email bar ---------- */
+  .notify-bar {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    padding: 20px clamp(20px,4vw,44px); border-top: 2px solid var(--ink);
+    background: var(--paper);
+  }
+  .notify-bar label { font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); margin: 0; flex-shrink: 0; }
+  .notify-bar input[type="email"] { flex: 1; min-width: 180px; }
+  .notify-bar button {
+    font-family: var(--display); font-weight: 600; font-size: 0.95rem;
+    background: var(--spruce); color: #fff; border: none; border-radius: 8px;
+    padding: 10px 16px; cursor: pointer; white-space: nowrap;
+    transition: background 120ms;
+  }
+  .notify-bar button:hover { background: #264C39; }
+  .notify-bar button:disabled { background: var(--ink-soft); cursor: wait; }
+  .notify-bar button.ghost {
+    background: transparent; color: var(--ink); border: 1px solid var(--rule);
+  }
+  .notify-bar button.ghost:hover { background: var(--rule); }
+  .notify-bar button.ghost.advance { color: var(--spruce); border-color: var(--spruce); }
+  .notify-bar button.ghost.advance:hover { background: #D4EDE0; }
+  .notify-bar button.ghost.decline { color: var(--danger); border-color: var(--danger); }
+  .notify-bar button.ghost.decline:hover { background: #F0DDD9; }
+  .notify-status { font-family: var(--mono); font-size: 0.78rem; color: var(--ink-soft); width: 100%; }
+
+  /* ---------- panel tabs ---------- */
+  .panel-tabs {
+    display: flex; gap: 0;
+    border-bottom: 2px solid var(--rule);
+    margin-bottom: 20px;
+  }
+  .tab-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 18px;
+    font-family: var(--mono); font-size: 0.75rem;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    background: transparent; border: none; border-bottom: 2px solid transparent;
+    color: var(--ink-soft); cursor: pointer; margin-bottom: -2px;
+    transition: color 120ms;
+  }
+  .tab-btn.active { color: var(--ink); border-bottom-color: var(--ink); }
+  .tab-btn:hover:not(.active) { color: var(--ink); }
+  .count-badge {
+    display: none;
+    background: var(--spruce); color: white;
+    font-family: var(--mono); font-size: 0.62rem;
+    padding: 2px 6px; border-radius: 10px; line-height: 1.4;
+  }
+  .count-badge.visible { display: inline-block; }
+
+  /* ---------- copy-link button ---------- */
+  button.copy-link {
+    width: 100%; margin-top: 16px;
+    font-family: var(--mono); font-size: 0.72rem;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    background: transparent; border: 1px dashed var(--rule);
+    color: var(--ink-soft); border-radius: 6px;
+    padding: 9px 12px; cursor: pointer;
+    transition: border-color 120ms, color 120ms, background 120ms;
+  }
+  button.copy-link:hover { border-color: var(--spruce); color: var(--spruce); background: #f0f4f1; }
+  button.copy-link.copied { border-color: var(--spruce); color: var(--spruce); }
+
+  /* ---------- inbox ---------- */
+  .inbox-head { padding-bottom: 16px; }
+  .greeting {
+    font-family: var(--display); font-weight: 800;
+    font-size: clamp(1.2rem, 2vw, 1.5rem);
+    letter-spacing: -0.01em;
+  }
+  .greeting-sub {
+    font-family: var(--mono); font-size: 0.72rem;
+    color: var(--ink-soft); text-transform: uppercase;
+    letter-spacing: 0.08em; margin-top: 4px;
+  }
+  .inbox-refresh {
+    display: flex; gap: 8px; align-items: center;
+    margin-top: 14px; flex-wrap: wrap;
+  }
+  button.sm {
+    font-family: var(--display); font-weight: 600; font-size: 0.88rem;
+    background: var(--paper); color: var(--ink-soft);
+    border: 1px solid var(--rule); border-radius: 6px;
+    padding: 7px 14px; cursor: pointer; white-space: nowrap;
+    transition: color 120ms, border-color 120ms;
+  }
+  button.sm:hover { color: var(--ink); border-color: var(--ink); }
+
+  .cand-list { display: grid; gap: 10px; }
+  .cand-row {
+    background: var(--card); border: 1px solid var(--rule);
+    border-radius: var(--radius); padding: 14px 18px;
+    display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+  }
+  .cand-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .cand-name { font-family: var(--display); font-weight: 600; font-size: 0.98rem; }
+  .cand-meta {
+    font-family: var(--mono); font-size: 0.68rem;
+    color: var(--ink-soft); display: flex; gap: 10px; flex-wrap: wrap;
+  }
+  .cand-score {
+    font-family: var(--mono); font-size: 0.8rem;
+    color: var(--brass); font-weight: 500; margin-top: 2px;
+  }
+  .cand-bottom {
+    font-size: 0.82rem; color: var(--ink-soft); margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40ch;
+  }
+  .cand-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+
+  /* status badges */
+  .badge {
+    font-family: var(--mono); font-size: 0.62rem;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 3px 8px; border-radius: 4px; white-space: nowrap;
+  }
+  .badge-pending   { background: var(--rule);   color: var(--ink-soft); }
+  .badge-analyzing { background: #E8F0EB;        color: var(--spruce); }
+  .badge-reviewed  { background: #F5EDD5;        color: var(--brass); }
+  .badge-advancing { background: #D4EDE0;        color: #1A4A2E; }
+  .badge-declined  { background: #F0DDD9;        color: var(--danger); }
+
+  button.analyze-btn {
+    font-family: var(--mono); font-size: 0.7rem;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    background: var(--spruce); color: white; border: none;
+    border-radius: 6px; padding: 7px 12px; cursor: pointer;
+    transition: background 120ms;
+  }
+  button.analyze-btn:hover { background: #264C39; }
+  button.analyze-btn:disabled { background: var(--ink-soft); cursor: wait; }
+
+  .inbox-status {
+    font-family: var(--mono); font-size: 0.78rem;
+    color: var(--ink-soft); padding: 8px 0;
+    min-height: 1.4em;
+  }
+  .inbox-status.error   { color: var(--danger); }
+  .inbox-status.working { color: var(--spruce); }
+
+  /* one orchestrated reveal; nothing else moves */
+  @media (prefers-reduced-motion: no-preference) {
+    .dossier > section { opacity: 0; transform: translateY(10px); animation: rise 420ms ease forwards; }
+    .dossier > section:nth-child(1) { animation-delay: 0ms; }
+    .dossier > section:nth-child(2) { animation-delay: 70ms; }
+    .dossier > section:nth-child(3) { animation-delay: 140ms; }
+    .dossier > section:nth-child(4) { animation-delay: 210ms; }
+    .dossier > section:nth-child(5) { animation-delay: 280ms; }
+    .dossier > section:nth-child(6) { animation-delay: 350ms; }
+    .dossier > section:nth-child(7) { animation-delay: 420ms; }
+    .dossier > section:nth-child(8) { animation-delay: 490ms; }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wordmark">VE<em>TA</em></div>
+  <div class="tagline">Read the person, not the keywords</div>
+</header>
+
+<main class="workbench">
+
+  <!-- ============ LEFT: JOB CARD (always visible) ============ -->
+  <form class="card" id="jobCard" autocomplete="off">
+    <h2><span class="chip">01</span> The job</h2>
+    <p class="hint">Introduce yourself the way you would to a friend who's helping you hire. Every score traces back to this.</p>
+
+    <label for="company">Company</label>
+    <input id="company" placeholder="Pursuit" />
+
+    <label for="about">What the company does</label>
+    <input id="about" placeholder="Tech training for adults from underestimated communities" />
+
+    <label for="role">Role you're hiring</label>
+    <input id="role" placeholder="Senior CX Manager" />
+
+    <label for="weeklyWork">What they'll actually do in a typical week</label>
+    <textarea id="weeklyWork" rows="2" placeholder="Own the candidate experience, run intake calls, coordinate with hiring managers"></textarea>
+
+    <label for="mustHaves">Must-have skills *</label>
+    <textarea id="mustHaves" rows="2" placeholder="Empathetic communication, ATS management, stakeholder coordination" required></textarea>
+
+    <label for="niceToHaves">Nice-to-haves</label>
+    <input id="niceToHaves" placeholder="Nonprofit experience, bilingual" />
+
+    <label for="cultureWords">Three culture words</label>
+    <input id="cultureWords" placeholder="mission-driven, candid, collaborative" />
+
+    <label for="whyOpen">Why is this role open?</label>
+    <input id="whyOpen" placeholder="Expanding candidate operations" />
+
+    <button class="copy-link" type="button" id="copyLinkBtn" onclick="copyApplicationLink()">
+      📋 Copy candidate application link
+    </button>
+  </form>
+
+  <!-- ============ RIGHT: TABBED PANEL ============ -->
+  <div>
+    <div class="panel-tabs">
+      <button class="tab-btn active" id="tabInbox" type="button" onclick="setPanel('inbox')">
+        📬 Inbox <span class="count-badge" id="countBadge"></span>
+      </button>
+      <button class="tab-btn" id="tabAnalyze" type="button" onclick="setPanel('analyze')">
+        📄 Analyze a resume
+      </button>
+    </div>
+
+    <!-- ---- INBOX PANEL ---- -->
+    <div id="panelInbox">
+      <div class="inbox-head">
+        <div class="greeting" id="greeting"></div>
+        <div class="greeting-sub" id="greetingSub">Loading applications…</div>
+        <div class="inbox-refresh">
+          <button class="sm" type="button" onclick="checkEmailInbox()">📥 Check email inbox</button>
+          <button class="sm" type="button" onclick="loadInbox()">↻ Refresh</button>
+          <div class="inbox-status" id="inboxStatus"></div>
+        </div>
+      </div>
+      <div id="inboxList"></div>
+    </div>
+
+    <!-- ---- ANALYZE PANEL ---- -->
+    <div id="panelAnalyze" style="display:none">
+      <div class="card">
+        <h2><span class="chip">02</span> The person</h2>
+        <p class="hint">Paste plain text or upload a PDF — formatting doesn't matter, the agent reads for the story.</p>
+
+        <div class="mode-toggle">
+          <button id="modeText" class="active" type="button">Paste text</button>
+          <button id="modePdf" type="button">Upload PDF</button>
+        </div>
+
+        <textarea id="resume" placeholder="Paste the full resume text here..."></textarea>
+
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" id="pdfInput" accept=".pdf,application/pdf" />
+          <div class="uz-label" id="uzLabel">Drop a PDF here or click to browse</div>
+          <div class="uz-sub">PDF only · max 10 MB</div>
+        </div>
+
+        <button class="primary" id="readBtn" type="button">Read this person</button>
+        <div class="status" id="status" role="status" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div id="results">
+  <div class="empty" style="margin: 28px clamp(20px,5vw,56px) 0;">
+    <strong>No one on the bench yet</strong>
+    Fill in the job, then analyze a resume or a queued application.
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// ---- state ----
+let pdfBase64 = null;
+let currentMode = "text";
+let lastAnalysis = null;
+let lastJob = null;
+let lastSubmissionId = null;
+let currentPanel = "inbox";
+
+const WORKING_LINES = [
+  "Reading the story…",
+  "Hunting for signals…",
+  "Finding the hidden value…",
+  "Writing your questions…",
+];
+
+// ============================================================
+// PANEL SWITCHING
+// ============================================================
+function setPanel(name) {
+  currentPanel = name;
+  $("tabInbox").className   = name === "inbox"   ? "tab-btn active" : "tab-btn";
+  $("tabAnalyze").className = name === "analyze" ? "tab-btn active" : "tab-btn";
+  $("panelInbox").style.display   = name === "inbox"   ? "" : "none";
+  $("panelAnalyze").style.display = name === "analyze" ? "" : "none";
+  if (name === "inbox") loadInbox();
+}
+
+// ============================================================
+// INBOX
+// ============================================================
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function relativeTime(ts) {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+function badgeHtml(status) {
+  const map = {
+    pending:   ["Pending",      "badge-pending"],
+    analyzing: ["Analyzing…",   "badge-analyzing"],
+    reviewed:  ["Reviewed",     "badge-reviewed"],
+    advancing: ["Advancing ✓",  "badge-advancing"],
+    declined:  ["Declined",     "badge-declined"],
+  };
+  const [label, cls] = map[status] || ["Unknown", "badge-pending"];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function roleSlug(role) {
+  return (role || "general").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+async function loadInbox() {
+  const role = $("role").value.trim() || "general";
+  const slug = roleSlug(role);
+  const greeting = $("greeting");
+  const sub = $("greetingSub");
+  const inboxStatus = $("inboxStatus");
+
+  greeting.textContent = getGreeting();
+  sub.textContent = "Loading…";
+  inboxStatus.textContent = "";
+  inboxStatus.className = "inbox-status";
+
+  try {
+    const res = await fetch(`/api/queue?role=${encodeURIComponent(slug)}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to load queue.");
+
+    const list = data.submissions || [];
+    const pending = list.filter(s => s.status === "pending").length;
+    const reviewed = list.filter(s => s.status === "reviewed").length;
+
+    if (list.length === 0) {
+      sub.textContent = `No applications yet for ${role}`;
+      $("inboxList").innerHTML = `
+        <div class="empty">
+          <strong>Inbox is empty</strong>
+          Share the application link for candidates to apply — it'll show up here.
+        </div>`;
+      $("countBadge").className = "count-badge";
+    } else {
+      sub.textContent = `${list.length} application${list.length !== 1 ? "s" : ""} for ${role}${pending > 0 ? ` · ${pending} need review` : ""}`;
+      $("countBadge").textContent = pending > 0 ? pending : list.length;
+      $("countBadge").className = "count-badge visible";
+      renderInbox(list);
+    }
+  } catch (err) {
+    sub.textContent = "Could not load inbox.";
+    inboxStatus.textContent = err.message;
+    inboxStatus.className = "inbox-status error";
+    $("inboxList").innerHTML = "";
+  }
+}
+
+function renderInbox(submissions) {
+  const html = submissions.map(s => `
+    <div class="cand-row" id="cand-${s.id}">
+      <div class="cand-info">
+        <div class="cand-name">${esc(s.name)}</div>
+        <div class="cand-meta">
+          <span>${esc(s.email)}</span>
+          <span>${relativeTime(s.submittedAt)}</span>
+        </div>
+        ${s.score != null ? `<div class="cand-score">${s.score}/25</div>` : ""}
+        ${s.bottomLine ? `<div class="cand-bottom">${esc(s.bottomLine)}</div>` : ""}
+      </div>
+      <div class="cand-actions">
+        ${badgeHtml(s.status)}
+        <button class="analyze-btn" id="btn-${s.id}"
+          onclick="analyzeSubmission('${s.id}')"
+          ${s.status === "analyzing" ? "disabled" : ""}>
+          ${s.status === "analyzed" || s.status === "reviewed" ? "Re-analyze" : "Analyze"}
+        </button>
+      </div>
+    </div>`).join("");
+  $("inboxList").innerHTML = `<div class="cand-list">${html}</div>`;
+}
+
+async function analyzeSubmission(id) {
+  const jobProfile = getJobProfile();
+  const inboxStatus = $("inboxStatus");
+
+  if (!jobProfile.mustHaves) {
+    inboxStatus.textContent = "Fill in the must-have skills in the Job panel first.";
+    inboxStatus.className = "inbox-status error";
+    return;
+  }
+
+  inboxStatus.textContent = "";
+  inboxStatus.className = "inbox-status";
+
+  const btn = $(`btn-${id}`);
+  if (btn) { btn.disabled = true; btn.textContent = "Analyzing…"; }
+
+  const rowBadge = $(`cand-${id}`)?.querySelector(".badge");
+  if (rowBadge) { rowBadge.className = "badge badge-analyzing"; rowBadge.textContent = "Analyzing…"; }
+
+  $("results").innerHTML = `
+    <div class="empty" style="margin: 28px clamp(20px,5vw,56px) 0;">
+      <strong>Reading the person…</strong>
+      Hunting for signals, finding hidden value, writing your questions.
+    </div>`;
+
+  try {
+    const res = await fetch("/api/analyze-submission", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id, jobProfile }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Analysis failed.");
+
+    if (data.analysis) {
+      lastAnalysis = data.analysis;
+      lastJob = jobProfile;
+      lastSubmissionId = id;
+      renderDossier(data.analysis, jobProfile, data, id);
+
+      // Update row inline
+      const row = $(`cand-${id}`);
+      if (row) {
+        const badge = row.querySelector(".badge");
+        if (badge) { badge.className = "badge badge-reviewed"; badge.textContent = "Reviewed"; }
+        const scoreEl = row.querySelector(".cand-score");
+        const bottomEl = row.querySelector(".cand-bottom");
+        const info = row.querySelector(".cand-info");
+        if (!scoreEl && data.analysis.total != null) {
+          const meta = row.querySelector(".cand-meta");
+          const div = document.createElement("div");
+          div.className = "cand-score";
+          div.textContent = `${data.analysis.total}/25`;
+          meta?.after(div);
+        }
+        if (!bottomEl && data.analysis.bottom_line) {
+          const scoreDiv = row.querySelector(".cand-score");
+          const div = document.createElement("div");
+          div.className = "cand-bottom";
+          div.textContent = data.analysis.bottom_line;
+          (scoreDiv || row.querySelector(".cand-meta"))?.after(div);
+        }
+        if (btn) { btn.disabled = false; btn.textContent = "Re-analyze"; }
+      }
+
+      document.querySelector(".dossier")?.scrollIntoView({ block: "start", behavior: "smooth" });
+    } else if (data.raw) {
+      renderRaw(data.raw);
+      if (btn) { btn.disabled = false; btn.textContent = "Re-analyze"; }
+      const rowBadge2 = $(`cand-${id}`)?.querySelector(".badge");
+      if (rowBadge2) { rowBadge2.className = "badge badge-pending"; rowBadge2.textContent = "Pending"; }
+    }
+  } catch (err) {
+    inboxStatus.textContent = err.message;
+    inboxStatus.className = "inbox-status error";
+    if (btn) { btn.disabled = false; btn.textContent = "Analyze"; }
+    const rowBadge3 = $(`cand-${id}`)?.querySelector(".badge");
+    if (rowBadge3) { rowBadge3.className = "badge badge-pending"; rowBadge3.textContent = "Pending"; }
+    $("results").innerHTML = `
+      <div class="empty" style="margin: 28px clamp(20px,5vw,56px) 0;">
+        <strong>Analysis failed</strong>${err.message}
+      </div>`;
+  }
+}
+
+async function updateStatus(id, status) {
+  try {
+    const res = await fetch("/api/update-status", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id, status }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    // Update badge in inbox row
+    const row = $(`cand-${id}`);
+    if (row) {
+      const badge = row.querySelector(".badge");
+      if (badge) {
+        const map = {
+          advancing: ["Advancing ✓", "badge-advancing"],
+          declined:  ["Declined",    "badge-declined"],
+        };
+        const [label, cls] = map[status] || ["Updated", "badge-reviewed"];
+        badge.className = `badge ${cls}`;
+        badge.textContent = label;
+      }
+    }
+
+    // Update notify bar status
+    const ns = $("notifyStatus");
+    if (ns) {
+      const labels = { advancing: "Marked as advancing ✓", declined: "Marked as declined" };
+      ns.textContent = labels[status] || "Status updated.";
+    }
+
+    // Update advance/decline buttons
+    const advBtn = $("advanceBtn");
+    const decBtn = $("declineBtn");
+    if (status === "advancing" && advBtn) { advBtn.textContent = "Advancing ✓"; advBtn.disabled = true; }
+    if (status === "declined"  && decBtn) { decBtn.textContent = "Declined";     decBtn.disabled = true; }
+
+  } catch (err) {
+    const ns = $("notifyStatus");
+    if (ns) ns.textContent = "Failed to update status: " + err.message;
+  }
+}
+
+// ============================================================
+// EMAIL INBOX PULL
+// ============================================================
+async function checkEmailInbox() {
+  const role    = $("role").value.trim()    || "General";
+  const company = $("company").value.trim() || "";
+  const inboxStatus = $("inboxStatus");
+
+  inboxStatus.className = "inbox-status working";
+  inboxStatus.textContent = "Checking your Gmail inbox…";
+
+  try {
+    const res = await fetch("/api/check-email", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ role, company }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to check inbox.");
+
+    if (data.found === 0) {
+      inboxStatus.className = "inbox-status";
+      inboxStatus.textContent = "No new resumes in inbox.";
+    } else {
+      inboxStatus.className = "inbox-status";
+      inboxStatus.textContent = `Found ${data.found} new resume${data.found !== 1 ? "s" : ""} — loading…`;
+      await loadInbox();
+    }
+  } catch (err) {
+    inboxStatus.className = "inbox-status error";
+    inboxStatus.textContent = err.message;
+  }
+}
+
+// ============================================================
+// APPLICATION LINK
+// ============================================================
+function copyApplicationLink() {
+  const role    = $("role").value.trim();
+  const company = $("company").value.trim();
+  if (!role) {
+    const btn = $("copyLinkBtn");
+    btn.textContent = "⚠ Fill in the Role field first";
+    setTimeout(() => { btn.textContent = "📋 Copy candidate application link"; }, 2000);
+    return;
+  }
+  const params = new URLSearchParams({ role });
+  if (company) params.set("company", company);
+  const link = `${location.origin}/apply.html?${params}`;
+  navigator.clipboard.writeText(link).then(() => {
+    const btn = $("copyLinkBtn");
+    btn.textContent = "✓ Link copied!";
+    btn.classList.add("copied");
+    setTimeout(() => {
+      btn.textContent = "📋 Copy candidate application link";
+      btn.classList.remove("copied");
+    }, 2500);
+  });
+}
+
+// ============================================================
+// ANALYZE (direct)
+// ============================================================
+function getJobProfile() {
+  return {
+    company:      $("company").value.trim(),
+    about:        $("about").value.trim(),
+    role:         $("role").value.trim(),
+    weeklyWork:   $("weeklyWork").value.trim(),
+    mustHaves:    $("mustHaves").value.trim(),
+    niceToHaves:  $("niceToHaves").value.trim(),
+    cultureWords: $("cultureWords").value.trim(),
+    whyOpen:      $("whyOpen").value.trim(),
+  };
+}
+
+$("modeText").addEventListener("click", () => setMode("text"));
+$("modePdf").addEventListener("click", () => setMode("pdf"));
+
+function setMode(mode) {
+  currentMode = mode;
+  pdfBase64 = null;
+  $("modeText").className = mode === "text" ? "active" : "";
+  $("modePdf").className = mode === "pdf" ? "active" : "";
+  $("resume").style.display = mode === "text" ? "" : "none";
+  $("uploadZone").style.display = mode === "pdf" ? "" : "none";
+  if (mode === "text") {
+    $("uzLabel").textContent = "Drop a PDF here or click to browse";
+    $("uploadZone").classList.remove("has-file");
+    $("pdfInput").value = "";
+  }
+}
+
+$("uploadZone").addEventListener("click", () => $("pdfInput").click());
+$("uploadZone").addEventListener("dragover", (e) => { e.preventDefault(); $("uploadZone").classList.add("drag"); });
+$("uploadZone").addEventListener("dragleave", () => $("uploadZone").classList.remove("drag"));
+$("uploadZone").addEventListener("drop", (e) => {
+  e.preventDefault(); $("uploadZone").classList.remove("drag");
+  const file = e.dataTransfer.files[0]; if (file) loadPdf(file);
+});
+$("pdfInput").addEventListener("change", (e) => { const file = e.target.files[0]; if (file) loadPdf(file); });
+
+function loadPdf(file) {
+  if (file.size > 10 * 1024 * 1024) { alert("PDF is over 10 MB — please use a smaller file."); return; }
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    pdfBase64 = ev.target.result.split(",")[1];
+    $("uzLabel").textContent = `✓ ${file.name}`;
+    $("uploadZone").classList.add("has-file");
+  };
+  reader.readAsDataURL(file);
+}
+
+$("readBtn").addEventListener("click", analyze);
+
+async function analyze() {
+  const jobProfile = getJobProfile();
+  const resumeText = $("resume").value.trim();
+  const status = $("status");
+  const btn = $("readBtn");
+
+  if (!jobProfile.mustHaves) {
+    status.className = "status error";
+    status.textContent = "Add at least the must-have skills — the agent scores against them.";
+    $("mustHaves").focus();
+    return;
+  }
+  if (currentMode === "text" && resumeText.length < 40) {
+    status.className = "status error";
+    status.textContent = "Paste a resume first — it looks empty.";
+    $("resume").focus();
+    return;
+  }
+  if (currentMode === "pdf" && !pdfBase64) {
+    status.className = "status error";
+    status.textContent = "Upload a PDF first.";
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Reading…";
+  status.className = "status working";
+  let i = 0;
+  status.textContent = WORKING_LINES[0];
+  const ticker = setInterval(() => { i = (i + 1) % WORKING_LINES.length; status.textContent = WORKING_LINES[i]; }, 2600);
+
+  const requestBody = pdfBase64
+    ? { jobProfile, resumePdf: pdfBase64 }
+    : { jobProfile, resumeText };
+
+  try {
+    const res = await fetch("/api/analyze", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(requestBody),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Something went wrong.");
+
+    if (data.analysis) {
+      lastAnalysis = data.analysis;
+      lastJob = jobProfile;
+      lastSubmissionId = null;
+      renderDossier(data.analysis, jobProfile, data, null);
+      status.className = "status";
+      status.textContent = "";
+    } else if (data.raw) {
+      renderRaw(data.raw);
+      status.className = "status";
+      status.textContent = "The model replied in prose instead of JSON — showing it raw.";
+    }
+    document.querySelector(".dossier")?.scrollIntoView({ block: "start" });
+  } catch (err) {
+    status.className = "status error";
+    status.textContent = err.message;
+  } finally {
+    clearInterval(ticker);
+    btn.disabled = false;
+    btn.textContent = "Read this person";
+  }
+}
+
+// ============================================================
+// EMAIL NOTIFICATION
+// ============================================================
+async function notifySend() {
+  const email = $("notifyEmail").value.trim();
+  const btn = $("notifyBtn");
+  const notifyStatus = $("notifyStatus");
+
+  if (!email) { notifyStatus.textContent = "Enter an email address first."; return; }
+  if (!lastAnalysis) return;
+
+  btn.disabled = true;
+  btn.textContent = "Sending…";
+  notifyStatus.textContent = "";
+
+  const candidateName = lastAnalysis.candidate_name || "Candidate";
+  const role = lastJob?.role || "the role";
+  const company = lastJob?.company || "";
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#20251F">
+      <h2 style="font-size:1.4rem;margin-bottom:4px">VETA candidate report</h2>
+      <p style="color:#5A6055;font-size:0.85rem;margin-bottom:24px">${esc(candidateName)} · ${esc(role)}${company ? " · " + esc(company) : ""}</p>
+      <blockquote style="border-left:3px solid #2F5D46;padding-left:16px;margin:0 0 24px;font-size:1.05rem;line-height:1.5">${esc(lastAnalysis.story || "")}</blockquote>
+      <p style="font-size:0.9rem;color:#5A6055;margin-bottom:8px"><strong style="color:#20251F">Score:</strong> ${lastAnalysis.total || "—"} / 25</p>
+      <p style="font-size:0.9rem;color:#5A6055;margin-bottom:24px"><strong style="color:#20251F">Bottom line:</strong> ${esc(lastAnalysis.bottom_line || "")}</p>
+      ${(lastAnalysis.questions || []).slice(0, 3).map(q => `
+        <div style="border:1px solid #DDD9CC;border-radius:8px;padding:14px 16px;margin-bottom:10px">
+          <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:#A97F2F;margin-bottom:6px">${esc(q.theme)}</div>
+          <div style="font-weight:600;margin-bottom:4px">${esc(q.question)}</div>
+          <div style="font-size:0.85rem;color:#5A6055">${esc(q.strong_answer)}</div>
+        </div>`).join("")}
+      <p style="font-size:0.75rem;color:#5A6055;margin-top:24px;border-top:1px solid #DDD9CC;padding-top:12px">Sent by VETA · advisory input to a human decision — you make the call.</p>
+    </div>`;
+
+  try {
+    const res = await fetch("/api/notify", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        to: email,
+        subject: `VETA: ${candidateName} · ${role}${company ? " at " + company : ""} — ${lastAnalysis.total || "?"}/25`,
+        html,
+        text: `${lastAnalysis.story}\n\nScore: ${lastAnalysis.total}/25\n\nBottom line: ${lastAnalysis.bottom_line}`,
+      }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      btn.textContent = "Sent ✓";
+      notifyStatus.textContent = `Report emailed to ${email}`;
+    } else {
+      throw new Error(data.error || "Send failed");
+    }
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = "Email this report →";
+    notifyStatus.textContent = "Failed: " + err.message;
+  }
+}
+
+// ============================================================
+// RENDER DOSSIER
+// ============================================================
+function renderDossier(a, job, meta, submissionId) {
+  const signals = (a.signals || []).map((s) => `
+    <div class="ledger-row">
+      <div class="k">${esc(s.title)}</div>
+      <div class="v"><span class="evidence">${esc(s.evidence)}</span></div>
+    </div>`).join("");
+
+  const hidden = (a.hidden_value || []).map((h) => `<li>${esc(h)}</li>`).join("");
+
+  const scoreRows = (a.scores || []).map((s) => `
+    <tr>
+      <td>${esc(s.dimension)}</td>
+      <td class="num">${esc(s.score)} / 5</td>
+      <td style="color:var(--ink-soft)">${esc(s.why)}</td>
+    </tr>`).join("");
+
+  const unknowns = (a.unknowns || []).map((u) => `<li>${esc(u)}</li>`).join("");
+
+  const gaps = (a.gap_stories || []).map((g) => `
+    <div class="gap">
+      <div class="obs">${esc(g.observation)}</div>
+      <div class="hyp"><em>Possible stories — hypotheses, not facts</em>${(g.hypotheses || []).map(esc).join(" · ")}</div>
+      <div class="ask">Ask: ${esc(g.question)}</div>
+    </div>`).join("");
+
+  const questions = (a.questions || []).map((q) => `
+    <div class="q">
+      <div class="theme">${esc(q.theme)}</div>
+      <div class="ask">${esc(q.question)}</div>
+      <div class="listen"><b>What a strong answer sounds like:</b> ${esc(q.strong_answer)}</div>
+    </div>`).join("");
+
+  const decisionBtns = submissionId ? `
+    <button class="ghost advance" id="advanceBtn" type="button"
+      onclick="updateStatus('${submissionId}', 'advancing')">✓ Advance</button>
+    <button class="ghost decline" id="declineBtn" type="button"
+      onclick="updateStatus('${submissionId}', 'declined')">✗ Decline</button>` : "";
+
+  $("results").innerHTML = `
+  <article class="dossier">
+    <section>
+      <div class="dossier-head">
+        <div>
+          <div class="name">${esc(a.candidate_name || "Candidate")} · ${esc(job.role || "the role")} · ${esc(job.company || "")}</div>
+          <p class="story">${esc(a.story)}</p>
+        </div>
+        <div class="score-stamp" aria-label="Score ${esc(a.total)} out of 25">
+          <div class="big">${esc(a.total)}</div>
+          <div class="small">of 25</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h3 class="section-title">The whole picture</h3>
+      <p class="whole-picture">${esc(a.whole_picture)}</p>
+    </section>
+
+    ${signals ? `<section><h3 class="section-title">Strongest signals</h3><div class="ledger">${signals}</div></section>` : ""}
+
+    ${hidden ? `<section><h3 class="section-title">Hidden value a keyword scan would miss</h3><ul class="plain">${hidden}</ul></section>` : ""}
+
+    <section>
+      <h3 class="section-title">Score, with evidence</h3>
+      <table class="scores">
+        <thead><tr><th>Dimension</th><th>Score</th><th>Why</th></tr></thead>
+        <tbody>${scoreRows}</tbody>
+      </table>
+      ${a.culture_read ? `<p class="culture-read"><b>Culture read:</b> ${esc(a.culture_read)}</p>` : ""}
+    </section>
+
+    ${gaps ? `<section><h3 class="section-title">Gaps &amp; odd chapters — stories to invite, not flags</h3>${gaps}</section>` : ""}
+
+    ${unknowns ? `<section><h3 class="section-title">What we don't know yet</h3><ul class="plain">${unknowns}</ul></section>` : ""}
+
+    ${questions ? `<section><h3 class="section-title">Your interview questions</h3>${questions}</section>` : ""}
+
+    <section class="bottom-line">
+      <div class="lede">Bottom line for ${esc(job.company || "you")}</div>
+      ${esc(a.bottom_line)}
+    </section>
+
+    ${a.one_human_note ? `
+    <section style="padding: 20px clamp(20px,4vw,44px); border-top: 1px solid var(--rule); background: var(--paper);">
+      <h3 class="section-title" style="color: var(--brass);">One human note</h3>
+      <p style="font-size: 1rem; line-height: 1.65; font-style: italic; color: var(--ink-soft); max-width: 62ch;">${esc(a.one_human_note)}</p>
+    </section>` : ""}
+
+    <div class="meta-line">model: ${esc(meta.model || "")} · advisory input to a human decision — you make the call</div>
+
+    <div class="notify-bar">
+      <label for="notifyEmail">Email this report →</label>
+      <input type="email" id="notifyEmail" placeholder="hiring manager's email" />
+      <button id="notifyBtn" type="button" onclick="notifySend()">Send →</button>
+      ${decisionBtns}
+      <div class="notify-status" id="notifyStatus"></div>
+    </div>
+
+  </article>`;
+}
+
+function renderRaw(text) {
+  $("results").innerHTML = `
+  <article class="dossier">
+    <section><h3 class="section-title">Analysis (raw)</h3><pre class="raw">${esc(text)}</pre></section>
+  </article>`;
+}
+
+// ============================================================
+// INIT
+// ============================================================
+$("greeting").textContent = getGreeting();
+loadInbox();
+</script>
+</body>
+</html>
